@@ -1,14 +1,13 @@
 package voznytsia.lab3;
-/*
-    IO-04 Voznytsia Dmytro
-    variant - 27
- */
+
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.PrintWriter;
 import java.util.Arrays;
 import java.util.Scanner;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
 
 public class Main {
@@ -48,8 +47,10 @@ public class Main {
 
             CountDownLatch latch = new CountDownLatch(3);
 
-            Thread t1 = new Thread(() -> {
-                synchronized(Main.class) {
+            ExecutorService executor = Executors.newFixedThreadPool(3);
+
+            executor.submit(() -> {
+                synchronized (Main.class) {
                     double[][] r = operations.multiplyMatrix(MM, operations.subtractMatrix(ME, MX));
                     for (int i = 0; i < r.length; i++) {
                         System.arraycopy(r[i], 0, result1[i], 0, r[i].length);
@@ -61,8 +62,8 @@ public class Main {
                 latch.countDown();
             });
 
-            Thread t2 = new Thread(() -> {
-                synchronized(Main.class) {
+            executor.submit(() -> {
+                synchronized (Main.class) {
                     double[][] r = operations.multiplyMatrixByScalar(operations.multiplyMatrix(ME, MX), q);
                     for (int i = 0; i < r.length; i++) {
                         System.arraycopy(r[i], 0, result2[i], 0, r[i].length);
@@ -74,8 +75,8 @@ public class Main {
                 latch.countDown();
             });
 
-            Thread t3 = new Thread(() -> {
-                synchronized(Main.class) {
+            executor.submit(() -> {
+                synchronized (Main.class) {
                     double[] r = operations.multiplyVectorByScalar(D, operations.findMinValue(B));
                     System.arraycopy(r, 0, result3, 0, r.length);
                     System.out.println("\nResult 3: " + Arrays.toString(r));
@@ -85,18 +86,13 @@ public class Main {
                 latch.countDown();
             });
 
-            t1.start();
-            t2.start();
-            t3.start();
-
             try {
-                semaphore1.acquire();
-                semaphore2.acquire();
-                semaphore3.acquire();
+                latch.await();
             } catch (InterruptedException e) {
                 e.printStackTrace();
+            } finally {
+                executor.shutdown();
             }
-
 
             double[][] MA = new double[result1.length][result1[0].length];
             for (int i = 0; i < MA.length; i++) {
